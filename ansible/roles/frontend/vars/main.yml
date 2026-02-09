@@ -1,0 +1,4 @@
+repo_url: "https://github.com/zhashmik/user-management-frontend"
+repo_branch: "security"
+app_dir: "/home/ubuntu/user-management-frontend"
+backend_ip: ""  # will be set dynamically from Terraform output
