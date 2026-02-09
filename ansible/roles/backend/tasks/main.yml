@@ -1,9 +1,66 @@
-db_host: ""          # will be set dynamically from Terraform output
-frontend_ip: ""      # will be set dynamically from Terraform output
-db_user: admin
-db_password: admin
-aws_access_key: "{{ lookup('env','AWS_ACCESS_KEY') }}"
-aws_secret_key: "{{ lookup('env','AWS_SECRET_KEY') }}"
-repo_url: "https://github.com/zhashmik/user-management-backend.git"
-repo_branch: "security"
-app_dir: "/opt/backend"
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install OpenJDK 21
+  apt:
+    name: openjdk-21-jdk
+    state: present
+
+- name: Install Maven
+  apt:
+    name: maven
+    state: present
+
+- name: Install Git
+  apt:
+    name: git
+    state: present
+
+- name: Ensure backend directory exists
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    mode: '0755'
+
+# --- Clone backend repo ---
+- name: Clone backend repo (security branch)
+  git:
+    repo: "{{ repo_url }}"
+    dest: "{{ app_dir }}"
+    version: "{{ repo_branch }}"
+    force: yes
+
+# --- Template application.properties with secrets ---
+- name: Template application.properties with secrets
+  template:
+    src: application.properties.j2
+    dest: "{{ app_dir }}/src/main/resources/application.properties"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0644'
+
+# --- Replace only 'localhost' in @CrossOrigin annotations ---
+- name: Replace localhost with frontend IP in AuthController.java
+  replace:
+    path: "{{ app_dir }}/src/main/java/com/syn/usermanagement/controller/AuthController.java"
+    regexp: 'localhost'
+    replace: "{{ frontend_ip }}"
+
+- name: Replace localhost with frontend IP in UserController.java
+  replace:
+    path: "{{ app_dir }}/src/main/java/com/syn/usermanagement/controller/UserController.java"
+    regexp: 'localhost'
+    replace: "{{ frontend_ip }}"
+
+# --- Build the backend ---
+- name: Build the backend with Maven
+  shell: mvn clean install
+  args:
+    chdir: "{{ app_dir }}"
+
+# --- Run the Spring Boot jar ---
+- name: Run Spring Boot jar
+  shell: nohup java -jar target/user-management-0.0.1-SNAPSHOT.jar &
+  args:
+    chdir: "{{ app_dir }}"
