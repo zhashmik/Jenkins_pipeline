@@ -1,0 +1,59 @@
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install Git
+  apt:
+    name: git
+    state: present
+
+# --- Install Node.js 20 ---
+- name: Setup Node.js 20 repository
+  shell: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+  args:
+    executable: /bin/bash
+
+- name: Install Node.js
+  apt:
+    name: nodejs
+    state: present
+
+- name: Install npm
+  apt:
+    name: npm
+    state: present
+
+# --- Install Angular CLI globally ---
+- name: Install Angular CLI
+  npm:
+    name: "@angular/cli@20.3.7"
+    global: yes
+    state: present
+
+# --- Clone frontend repo ---
+- name: Clone frontend repo (security branch)
+  git:
+    repo: "{{ repo_url }}"
+    dest: "{{ app_dir }}"
+    version: "{{ repo_branch }}"
+    force: yes
+
+# --- Replace localhost with backend IP in user.service.ts ---
+- name: Replace backend API URL in user.service.ts
+  replace:
+    path: "{{ app_dir }}/src/app/services/user.service.ts"
+    regexp: 'localhost'
+    replace: "{{ backend_ip }}"
+
+# --- Replace localhost with backend IP in auth.service.ts ---
+- name: Replace backend API URL in auth.service.ts
+  replace:
+    path: "{{ app_dir }}/src/app/services/auth.service.ts"
+    regexp: 'localhost'
+    replace: "{{ backend_ip }}"
+
+# --- Run Angular frontend ---
+- name: Serve Angular frontend
+  shell: ng serve --host 0.0.0.0
+  args:
+    chdir: "{{ app_dir }}"
