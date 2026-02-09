@@ -1,0 +1,25 @@
+- name: Update apt cache
+  apt:
+    update_cache: yes
+
+- name: Install MySQL server and net-tools
+  apt:
+    name:
+      - mysql-server
+      - python3-pymysql
+      - net-tools
+    state: present
+
+- name: Start and enable MySQL
+  service:
+    name: mysql
+    state: started
+    enabled: yes
+
+- name: Create MySQL admin user
+  mysql_user:
+    name: admin
+    password: admin
+    host: '%'
+    priv: '*.*:ALL,GRANT'
+    state: present
